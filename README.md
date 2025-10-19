@@ -42,6 +42,7 @@ This project demonstrates fundamental concepts of **2D graphics programming**, *
      ```
 
 3. **Clone this repository**
+git clone https://github.com/nasimhridoy1/Pacman.git
    ```bash
-  git clone https://github.com/nasimhridoy1/Pacman.git
+
    cd Pacman
