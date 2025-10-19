@@ -84,7 +84,7 @@ void initMaze() {
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
     };
-
+    
     totalDots = 0;
     for (int i = 0; i < MAZE_HEIGHT; i++) {
         for (int j = 0; j < MAZE_WIDTH; j++) {
@@ -115,7 +115,7 @@ void initGhosts() {
     ghosts[2].x = 13; ghosts[2].y = 14; ghosts[2].color = 2; ghosts[2].speed = 0.08f;
     // Orange ghost (Clyde)
     ghosts[3].x = 15; ghosts[3].y = 14; ghosts[3].color = 3; ghosts[3].speed = 0.08f;
-
+    
     for (int i = 0; i < 4; i++) {
         ghosts[i].direction = rand() % 4;
         ghosts[i].stateTimer = 0;
@@ -137,24 +137,21 @@ bool isWall(int x, int y) {
     return maze[y][x] == 1;
 }
 
-// Updated canMove to reduce rounding edge cases
 bool canMove(float x, float y, int dir) {
     float nextX = x, nextY = y;
-    // use a value close to half-cell but slightly smaller to avoid rounding into walls
-    float offset = 0.49f;
-
+    float offset = 0.4f;
+    
     switch(dir) {
         case 0: nextX += offset; break; // right
         case 1: nextY -= offset; break; // up
         case 2: nextX -= offset; break; // left
         case 3: nextY += offset; break; // down
     }
-
+    
     int gridX = (int)(nextX + 0.5f);
     int gridY = (int)(nextY + 0.5f);
-
-    if (gridX < 0 || gridX >= MAZE_WIDTH || gridY < 0 || gridY >= MAZE_HEIGHT) return false;
-    return maze[gridY][gridX] != 1;
+    
+    return !isWall(gridX, gridY);
 }
 
 void drawCircle(float cx, float cy, float r, int segments) {
@@ -169,29 +166,29 @@ void drawCircle(float cx, float cy, float r, int segments) {
 
 void drawPacman() {
     glPushMatrix();
-    glTranslatef(pacman.x * CELL_SIZE + CELL_SIZE/2,
+    glTranslatef(pacman.x * CELL_SIZE + CELL_SIZE/2, 
                  pacman.y * CELL_SIZE + CELL_SIZE/2, 0);
     glRotatef(-pacman.direction * 90, 0, 0, 1);
-
+    
     glColor3f(1.0f, 1.0f, 0.0f);
-
+    
     float startAngle = pacman.mouthAngle * M_PI / 180.0f;
     float endAngle = (360 - pacman.mouthAngle) * M_PI / 180.0f;
-
+    
     glBegin(GL_TRIANGLE_FAN);
     glVertex2f(0, 0);
     for (float angle = startAngle; angle <= endAngle; angle += 0.1f) {
         glVertex2f(cos(angle) * 8, sin(angle) * 8);
     }
     glEnd();
-
+    
     glPopMatrix();
 }
 
-void drawGhost(struct Ghost &ghost) {
+void drawGhost(Ghost &ghost) {
     float x = ghost.x * CELL_SIZE + CELL_SIZE/2;
     float y = ghost.y * CELL_SIZE + CELL_SIZE/2;
-
+    
     // Set ghost color
     switch(ghost.color) {
         case 0: glColor3f(1.0f, 0.0f, 0.0f); break; // Red
@@ -199,8 +196,8 @@ void drawGhost(struct Ghost &ghost) {
         case 2: glColor3f(0.0f, 1.0f, 1.0f); break; // Cyan
         case 3: glColor3f(1.0f, 0.65f, 0.0f); break; // Orange
     }
-
-    // Body (semi-circle)
+    
+    // Body (semi-circle + rectangle)
     glBegin(GL_TRIANGLE_FAN);
     glVertex2f(x, y);
     for (int i = 0; i <= 180; i += 10) {
@@ -208,7 +205,7 @@ void drawGhost(struct Ghost &ghost) {
         glVertex2f(x + cos(angle) * 8, y + sin(angle) * 8);
     }
     glEnd();
-
+    
     // Bottom wavy part
     glBegin(GL_TRIANGLE_FAN);
     glVertex2f(x, y);
@@ -220,12 +217,12 @@ void drawGhost(struct Ghost &ghost) {
     glVertex2f(x + 6, y + 4);
     glVertex2f(x + 8, y);
     glEnd();
-
+    
     // Eyes
     glColor3f(1.0f, 1.0f, 1.0f);
     drawCircle(x - 3, y - 2, 2, 16);
     drawCircle(x + 3, y - 2, 2, 16);
-
+    
     glColor3f(0.0f, 0.0f, 1.0f);
     drawCircle(x - 3, y - 2, 1, 16);
     drawCircle(x + 3, y - 2, 1, 16);
@@ -236,7 +233,7 @@ void drawMaze() {
         for (int j = 0; j < MAZE_WIDTH; j++) {
             float x = j * CELL_SIZE;
             float y = i * CELL_SIZE;
-
+            
             if (maze[i][j] == 1) {
                 // Wall
                 glColor3f(0.0f, 0.0f, 1.0f);
@@ -250,15 +247,6 @@ void drawMaze() {
                 // Dot
                 glColor3f(1.0f, 1.0f, 1.0f);
                 drawCircle(x + CELL_SIZE/2, y + CELL_SIZE/2, 2, 8);
-            } else if (maze[i][j] == 3) {
-                // optionally draw ghost house floor slightly different
-                glColor3f(0.2f, 0.2f, 0.2f);
-                glBegin(GL_QUADS);
-                glVertex2f(x, y);
-                glVertex2f(x + CELL_SIZE, y);
-                glVertex2f(x + CELL_SIZE, y + CELL_SIZE);
-                glVertex2f(x, y + CELL_SIZE);
-                glEnd();
             }
         }
     }
@@ -274,16 +262,16 @@ void drawText(float x, float y, const char* text) {
 void drawHUD() {
     glColor3f(1.0f, 1.0f, 1.0f);
     char buffer[100];
-
+    
     sprintf(buffer, "Score: %d", pacman.score);
     drawText(520, 550, buffer);
-
+    
     sprintf(buffer, "Lives: %d", pacman.lives);
     drawText(520, 520, buffer);
-
+    
     sprintf(buffer, "Time: %.1f", gameTime);
     drawText(520, 490, buffer);
-
+    
     sprintf(buffer, "Dots: %d/%d", dotsEaten, totalDots);
     drawText(520, 460, buffer);
 }
@@ -291,7 +279,7 @@ void drawHUD() {
 void drawMenu() {
     glColor3f(1.0f, 1.0f, 0.0f);
     drawText(300, 400, "PAC-MAN");
-
+    
     glColor3f(1.0f, 1.0f, 1.0f);
     drawText(280, 320, "Press SPACE to Start");
     drawText(280, 280, "Press H for High Score");
@@ -303,7 +291,7 @@ void drawMenu() {
 void drawPauseScreen() {
     glColor3f(1.0f, 1.0f, 0.0f);
     drawText(320, 300, "PAUSED");
-
+    
     glColor3f(1.0f, 1.0f, 1.0f);
     drawText(260, 250, "Press P to Resume");
     drawText(260, 210, "Press ESC to Menu");
@@ -312,15 +300,15 @@ void drawPauseScreen() {
 void drawGameOver() {
     glColor3f(1.0f, 0.0f, 0.0f);
     drawText(300, 350, "GAME OVER");
-
+    
     glColor3f(1.0f, 1.0f, 1.0f);
     char buffer[100];
     sprintf(buffer, "Final Score: %d", pacman.score);
     drawText(280, 300, buffer);
-
+    
     sprintf(buffer, "Time: %.1f seconds", gameTime);
     drawText(280, 260, buffer);
-
+    
     drawText(250, 200, "Press SPACE to Play Again");
     drawText(260, 160, "Press ESC for Menu");
 }
@@ -328,20 +316,20 @@ void drawGameOver() {
 void drawWinScreen() {
     glColor3f(0.0f, 1.0f, 0.0f);
     drawText(300, 350, "YOU WIN!");
-
+    
     glColor3f(1.0f, 1.0f, 1.0f);
     char buffer[100];
     sprintf(buffer, "Final Score: %d", pacman.score);
     drawText(280, 300, buffer);
-
+    
     sprintf(buffer, "Time: %.1f seconds", gameTime);
     drawText(280, 260, buffer);
-
+    
     if (pacman.score > highScore) {
         glColor3f(1.0f, 1.0f, 0.0f);
         drawText(270, 220, "NEW HIGH SCORE!");
     }
-
+    
     glColor3f(1.0f, 1.0f, 1.0f);
     drawText(250, 180, "Press SPACE to Play Again");
     drawText(260, 140, "Press ESC for Menu");
@@ -352,7 +340,7 @@ void updatePacman() {
     if (canMove(pacman.x, pacman.y, pacman.nextDirection)) {
         pacman.direction = pacman.nextDirection;
     }
-
+    
     // Move in current direction
     if (canMove(pacman.x, pacman.y, pacman.direction)) {
         switch(pacman.direction) {
@@ -362,28 +350,26 @@ void updatePacman() {
             case 3: pacman.y += pacman.speed; break;
         }
     }
-
+    
     // Wrap around
     if (pacman.x < 0) pacman.x = MAZE_WIDTH - 1;
     if (pacman.x >= MAZE_WIDTH) pacman.x = 0;
-
+    
     // Animate mouth
     pacman.mouthAngle += pacman.mouthOpening * 3;
     if (pacman.mouthAngle >= 45) pacman.mouthOpening = -1;
     if (pacman.mouthAngle <= 0) pacman.mouthOpening = 1;
-
+    
     // Eat dots
     int gridX = (int)(pacman.x + 0.5f);
     int gridY = (int)(pacman.y + 0.5f);
-
-    if (gridX >= 0 && gridX < MAZE_WIDTH && gridY >= 0 && gridY < MAZE_HEIGHT) {
-        if (maze[gridY][gridX] == 0) {
-            maze[gridY][gridX] = 2;
-            dotsEaten++;
-            pacman.score += 10;
-        }
+    
+    if (maze[gridY][gridX] == 0) {
+        maze[gridY][gridX] = 2;
+        dotsEaten++;
+        pacman.score += 10;
     }
-
+    
     // Check win condition
     if (dotsEaten >= totalDots) {
         currentState = WIN;
@@ -393,78 +379,38 @@ void updatePacman() {
     }
 }
 
-// Updated updateGhosts: force ghosts to leave cells marked '3' (ghost house)
 void updateGhosts() {
     for (int i = 0; i < 4; i++) {
-        struct Ghost *ghost = &ghosts[i];
-
-        // compute ghost's current grid cell
-        int gX = (int)(ghost->x + 0.5f);
-        int gY = (int)(ghost->y + 0.5f);
-
-        // If ghost is inside the ghost house (cells marked 3), force it to move
-        // to the nearest adjacent cell that is NOT a ghost-house (3) and not a wall (1).
-        if (gX >= 0 && gX < MAZE_WIDTH && gY >= 0 && gY < MAZE_HEIGHT && maze[gY][gX] == 3) {
-            bool movedOut = false;
-            const int dirs[4] = {0,1,2,3}; // right, up, left, down
-            for (int d = 0; d < 4; d++) {
-                int nx = gX, ny = gY;
-                switch(dirs[d]) {
-                    case 0: nx = gX + 1; ny = gY; break;
-                    case 1: nx = gX;     ny = gY - 1; break;
-                    case 2: nx = gX - 1; ny = gY; break;
-                    case 3: nx = gX;     ny = gY + 1; break;
-                }
-                if (nx < 0 || nx >= MAZE_WIDTH || ny < 0 || ny >= MAZE_HEIGHT) continue;
-                if (maze[ny][nx] != 1 && maze[ny][nx] != 3) {
-                    // set direction towards that neighbor and attempt to move
-                    ghost->direction = dirs[d];
-                    if (canMove(ghost->x, ghost->y, ghost->direction)) {
-                        switch(ghost->direction) {
-                            case 0: ghost->x += ghost->speed; break;
-                            case 1: ghost->y -= ghost->speed; break;
-                            case 2: ghost->x -= ghost->speed; break;
-                            case 3: ghost->y += ghost->speed; break;
-                        }
-                        movedOut = true;
-                        break;
-                    }
-                }
-            }
-            // If we couldn't move out this frame, let the ghost try again next frame.
-            if (!movedOut) {
-                // still allow speed update and collision check below, then continue
+        Ghost &ghost = ghosts[i];
+        
+        // Simple AI: try to move towards Pacman with some randomness
+        if (rand() % 100 < 70) { // 70% chase, 30% random
+            float dx = pacman.x - ghost.x;
+            float dy = pacman.y - ghost.y;
+            
+            if (fabs(dx) > fabs(dy)) {
+                ghost.direction = (dx > 0) ? 0 : 2;
+            } else {
+                ghost.direction = (dy > 0) ? 3 : 1;
             }
         } else {
-            // Normal behavior: chase 70% of time, random 30%
-            if (rand() % 100 < 70) { // 70% chase, 30% random
-                float dx = pacman.x - ghost->x;
-                float dy = pacman.y - ghost->y;
-
-                if (fabs(dx) > fabs(dy)) {
-                    ghost->direction = (dx > 0) ? 0 : 2;
-                } else {
-                    ghost->direction = (dy > 0) ? 3 : 1;
-                }
-            } else {
-                ghost->direction = rand() % 4;
-            }
-
-            // Try to move; if blocked, pick a random different direction next frame
-            if (canMove(ghost->x, ghost->y, ghost->direction)) {
-                switch(ghost->direction) {
-                    case 0: ghost->x += ghost->speed; break;
-                    case 1: ghost->y -= ghost->speed; break;
-                    case 2: ghost->x -= ghost->speed; break;
-                    case 3: ghost->y += ghost->speed; break;
-                }
-            } else {
-                ghost->direction = rand() % 4;
-            }
+            ghost.direction = rand() % 4;
         }
-
+        
+        // Try to move
+        if (canMove(ghost.x, ghost.y, ghost.direction)) {
+            switch(ghost.direction) {
+                case 0: ghost.x += ghost.speed; break;
+                case 1: ghost.y -= ghost.speed; break;
+                case 2: ghost.x -= ghost.speed; break;
+                case 3: ghost.y += ghost.speed; break;
+            }
+        } else {
+            ghost.direction = rand() % 4;
+        }
+        
         // Check collision with Pacman
-        float dist = sqrtf((ghost->x - pacman.x)*(ghost->x - pacman.x) + (ghost->y - pacman.y)*(ghost->y - pacman.y));
+        float dist = sqrt(pow(ghost.x - pacman.x, 2) + pow(ghost.y - pacman.y, 2));
         if (dist < 0.5f) {
             pacman.lives--;
             if (pacman.lives <= 0) {
@@ -475,16 +421,16 @@ void updateGhosts() {
                 initGhosts();
             }
         }
-
-        // Increase speed over time (cap it)
-        ghost->speed = 0.08f + gameTime * 0.001f;
-        if (ghost->speed > 0.15f) ghost->speed = 0.15f;
+        
+        // Increase speed over time
+        ghost.speed = 0.08f + gameTime * 0.001f;
+        if (ghost.speed > 0.15f) ghost.speed = 0.15f;
     }
 }
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT);
-
+    
     if (currentState == MENU) {
         drawMenu();
     } else if (currentState == PAUSED) {
@@ -503,7 +449,7 @@ void display() {
     } else if (currentState == WIN) {
         drawWinScreen();
     }
-
+    
     glutSwapBuffers();
 }
 
@@ -513,7 +459,7 @@ void update(int value) {
         updatePacman();
         updateGhosts();
     }
-
+    
     glutPostRedisplay();
     glutTimerFunc(16, update, 0); // ~60 FPS
 }
@@ -573,8 +519,8 @@ void init() {
     glLoadIdentity();
     gluOrtho2D(0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     glMatrixMode(GL_MODELVIEW);
-
-    srand((unsigned int)time(NULL));
+    
+    srand(time(NULL));
     resetGame();
 }
 
@@ -584,14 +530,14 @@ int main(int argc, char** argv) {
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("PAC-MAN - CSE 426 Project");
-
+    
     init();
-
+    
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
     glutSpecialFunc(specialKeys);
     glutTimerFunc(0, update, 0);
-
+    
     glutMainLoop();
     return 0;
 }
